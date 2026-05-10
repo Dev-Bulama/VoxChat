@@ -239,17 +239,38 @@ function chatList() {
         },
 
         async startChat(userId) {
+            this.showNewChat = false;
+            this.showToast('Opening chat...', 'info');
             const res = await fetch('/chats', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: JSON.stringify({ user_id: userId }),
             });
             const data = await res.json();
-            if (data.redirect) window.location = data.redirect;
+            if (data.redirect) {
+                this.showToast('Chat ready! Loading...', 'success');
+                setTimeout(() => window.location = data.redirect, 400);
+            }
+        },
+
+        showToast(msg, type = 'info') {
+            const colors = { info: '#6366f1', success: '#10b981', error: '#ef4444' };
+            const el = document.createElement('div');
+            el.textContent = msg;
+            Object.assign(el.style, {
+                position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+                background: colors[type], color: '#fff', padding: '10px 20px',
+                borderRadius: '999px', fontSize: '14px', fontWeight: '500',
+                zIndex: '9999', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                transition: 'opacity 0.3s', whiteSpace: 'nowrap',
+            });
+            document.body.appendChild(el);
+            setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2000);
         },
     }
 }

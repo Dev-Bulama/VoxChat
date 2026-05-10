@@ -86,6 +86,14 @@ class ChatController extends Controller
 
         $chat = $this->chatService->findOrCreatePrivateChat($currentUser->id, $targetUser->id);
 
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'redirect' => route('chats.show', $chat),
+                'chat_id'  => $chat->id,
+                'message'  => 'Chat ready',
+            ]);
+        }
+
         return redirect()->route('chats.show', $chat);
     }
 

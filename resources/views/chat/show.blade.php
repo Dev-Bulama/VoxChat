@@ -2,7 +2,7 @@
 @section('title', $chat->getDisplayNameFor(auth()->id()))
 
 @section('content')
-<div class="flex flex-col h-screen pb-0 overflow-hidden"
+<div class="flex flex-col h-screen pb-16 lg:pb-0 overflow-hidden"
      x-data="chatRoom({{ $chat->id }}, {{ auth()->id() }})"
      x-init="init()">
 

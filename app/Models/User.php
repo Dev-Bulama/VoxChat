@@ -106,6 +106,13 @@ class User extends Authenticatable
         return $this->hasMany(UserSubscription::class)->where('status', 'active');
     }
 
+    public function communities(): BelongsToMany
+    {
+        return $this->belongsToMany(Community::class, 'community_members', 'user_id', 'community_id')
+            ->withPivot(['role', 'joined_at'])
+            ->withTimestamps();
+    }
+
     public function aiAvatars(): HasMany
     {
         return $this->hasMany(UserAiAvatar::class);
