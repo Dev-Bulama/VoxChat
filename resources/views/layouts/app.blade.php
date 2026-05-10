@@ -286,8 +286,16 @@
 
 {{-- Laravel Echo & Real-time JS --}}
 @auth
+@php
+    $authUserData = [
+        'id'         => auth()->id(),
+        'name'       => auth()->user()->name,
+        'username'   => auth()->user()->username,
+        'avatar_url' => auth()->user()->avatar_url,
+    ];
+@endphp
 <script>
-    const AUTH_USER = @json(['id' => auth()->id(), 'name' => auth()->user()->name, 'username' => auth()->user()->username, 'avatar_url' => auth()->user()->avatar_url]);
+    const AUTH_USER = @json($authUserData);
     const PUSHER_KEY = '{{ config("broadcasting.connections.pusher.key") }}';
     const PUSHER_CLUSTER = '{{ config("broadcasting.connections.pusher.options.cluster") }}';
     const PUSHER_HOST = '{{ config("broadcasting.connections.pusher.options.host") }}';
