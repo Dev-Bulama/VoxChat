@@ -4,14 +4,18 @@ Options -Indexes
     RewriteEngine On
     RewriteBase /
 
-    # Serve real static files from public/ (css, js, images, icons, storage)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
+    # Don't rewrite index.php itself
+    RewriteRule ^index\.php$ - [L]
+
+    # Serve real files and directories at root level directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Static assets (css/js/images/icons etc) live inside public/
     RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f
     RewriteRule ^(.*)$ public/$1 [L]
 
-    # Everything else → root index.php (which loads Laravel)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
+    # Everything else goes through Laravel
     RewriteRule ^ index.php [L]
 </IfModule>
