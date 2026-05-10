@@ -10,21 +10,15 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.0",
         "laravel/tinker": "^2.9",
+        "laravel/reverb": "^1.0",
         "pusher/pusher-php-server": "^7.2",
-        "beyondcode/laravel-websockets": "^1.14",
         "intervention/image": "^3.3",
-        "laravel/cashier": "^15.0",
         "stripe/stripe-php": "^13.0",
         "predis/predis": "^2.2",
-        "laravel/horizon": "^5.27",
         "spatie/laravel-permission": "^6.3",
         "spatie/laravel-activitylog": "^4.7",
-        "spatie/laravel-medialibrary": "^11.0",
-        "league/flysystem-aws-s3-v3": "^3.0",
-        "laravel/reverb": "@beta",
         "guzzlehttp/guzzle": "^7.8",
         "openai-php/laravel": "^0.10",
-        "laravel/scout": "^10.5",
         "bacon/bacon-qr-code": "^3.0",
         "pragmarx/google2fa-laravel": "^2.1"
     },
@@ -59,11 +53,6 @@
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-        ],
-        "post-create-project-cmd": [
-            "@php artisan key:generate --ansi",
-            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-            "@php artisan migrate --graceful --ansi"
         ]
     },
     "extra": {
@@ -80,6 +69,6 @@
             "php-http/discovery": true
         }
     },
-    "minimum-stability": "beta",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
