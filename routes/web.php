@@ -73,6 +73,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{message}/pin',       [MessageController::class, 'pin'])->name('pin');
         Route::post('/typing',              [MessageController::class, 'typing'])->name('typing');
         Route::post('/read',                [MessageController::class, 'markRead'])->name('read');
+        Route::get('/poll',                 [MessageController::class, 'poll'])->name('poll');
     });
 
     // Calls

@@ -154,6 +154,37 @@ class MessageController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function poll(Chat $chat, Request $request)
+    {
+        abort_unless(
+            $chat->participants()->where('user_id', Auth::id())->whereNull('left_at')->exists(),
+            403
+        );
+
+        $after = $request->integer('after', 0);
+        $user  = Auth::user();
+
+        $messages = $chat->messages()
+            ->with(['sender', 'replyTo.sender', 'reactions'])
+            ->where('id', '>', $after)
+            ->visible()
+            ->orderBy('created_at')
+            ->limit(50)
+            ->get();
+
+        return response()->json([
+            'messages' => $messages->map(fn($m) => [
+                'id'        => $m->id,
+                'sender_id' => $m->sender_id,
+                'type'      => $m->type,
+                'body'      => $m->body,
+                'created_at'=> $m->created_at,
+                'sender'    => $m->sender,
+                'html'      => view('chat.partials.message', ['message' => $m, 'user' => $user])->render(),
+            ])
+        ]);
+    }
+
     public function pin(Message $message)
     {
         abort_unless(
