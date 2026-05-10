@@ -54,6 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/',              [ChatController::class, 'index'])->name('index');
         Route::post('/',             [ChatController::class, 'startPrivateChat'])->name('create');
         Route::get('/search',        [ChatController::class, 'search'])->name('search');
+        Route::get('/group/new',     [ChatController::class, 'showCreateGroup'])->name('group.new');
         Route::post('/group',        [ChatController::class, 'createGroup'])->name('group.create');
         Route::get('/{chat}',        [ChatController::class, 'show'])->name('show');
         Route::post('/{chat}/archive',[ChatController::class, 'archive'])->name('archive');

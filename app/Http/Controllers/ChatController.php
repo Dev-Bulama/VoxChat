@@ -89,6 +89,11 @@ class ChatController extends Controller
         return redirect()->route('chats.show', $chat);
     }
 
+    public function showCreateGroup()
+    {
+        return view('chat.create-group');
+    }
+
     public function createGroup(Request $request)
     {
         $request->validate([
@@ -118,7 +123,8 @@ class ChatController extends Controller
                   ->orWhere('username', 'like', "%{$query}%")
             )
             ->limit(10)
-            ->get(['id', 'name', 'username', 'avatar', 'is_online', 'last_seen_at']);
+            ->get(['id', 'name', 'username', 'avatar', 'is_online', 'last_seen_at'])
+            ->map(fn($u) => array_merge($u->toArray(), ['avatar_url' => $u->avatar_url]));
 
         $messages = Message::visible()
             ->whereHas('chat.participants', fn($q) => $q->where('user_id', $user->id))
