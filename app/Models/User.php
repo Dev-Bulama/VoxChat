@@ -117,12 +117,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(UserAiAvatar::class)->where('is_active', true);
     }
 
-    public function notifications(): HasMany
-    {
-        return $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')
-            ->orderBy('created_at', 'desc');
-    }
-
     // ---- Computed attributes ----
 
     public function getAvatarUrlAttribute(): string
