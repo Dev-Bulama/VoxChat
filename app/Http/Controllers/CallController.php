@@ -53,6 +53,32 @@ class CallController extends Controller
         ]);
     }
 
+    public function pending()
+    {
+        $user = Auth::user();
+        $call = Call::where('status', 'ringing')
+            ->whereHas('participants', fn($q) => $q->where('user_id', $user->id)->where('status', 'ringing'))
+            ->with(['participants.user', 'chat'])
+            ->latest()
+            ->first();
+
+        if (!$call) return response()->json(['call' => null]);
+
+        $caller = $call->participants->firstWhere('user_id', '!=', $user->id);
+
+        return response()->json([
+            'call' => [
+                'call_id'  => $call->id,
+                'type'     => $call->type,
+                'room_id'  => $call->room_id,
+                'caller'   => [
+                    'name'       => $caller?->user?->name ?? 'Unknown',
+                    'avatar_url' => $caller?->user?->avatar_url ?? '',
+                ],
+            ],
+        ]);
+    }
+
     public function join(Call $call)
     {
         $user = Auth::user();

@@ -80,6 +80,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('calls')->name('calls.')->group(function () {
         Route::get('/',                     [CallController::class, 'index'])->name('index');
         Route::post('/initiate',            [CallController::class, 'initiate'])->name('initiate');
+        Route::get('/pending',              [CallController::class, 'pending'])->name('pending');
         Route::get('/{call}/room',          [CallController::class, 'showRoom'])->name('room');
         Route::post('/{call}/join',         [CallController::class, 'join'])->name('join');
         Route::post('/{call}/answer',       [CallController::class, 'answer'])->name('answer');

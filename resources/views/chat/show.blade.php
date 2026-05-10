@@ -3,16 +3,32 @@
 
 @section('content')
 {{--
-    Fixed-position fullscreen chat view.
-    top-0 / bottom-16 on mobile (leaves room for bottom nav h-16).
-    top-14 / bottom-0 on desktop (leaves room for top nav h-14).
+  Inline style with svh units to handle mobile browser chrome correctly.
+  svh = small viewport height (excludes browser chrome/address bar).
+  Mobile: subtract bottom-nav height (4rem = 64px).
+  Desktop (lg): subtract top-nav height (3.5rem = 56px) — already offset by
+  #app-container lg:pt-14, so we need the remainder: 100svh - 3.5rem.
 --}}
-<div class="fixed inset-x-0 top-0 bottom-16 lg:top-14 lg:bottom-0 flex flex-col bg-white dark:bg-gray-900 z-20"
-     x-data="chatRoom({{ $chat->id }}, {{ auth()->id() }})"
-     x-init="init()">
+<style>
+#chat-view {
+    height: calc(100svh - 4rem);
+    height: calc(100vh - 4rem); /* fallback for older browsers */
+}
+@media (min-width: 1024px) {
+    #chat-view {
+        height: calc(100svh - 3.5rem);
+        height: calc(100vh - 3.5rem);
+    }
+}
+</style>
 
-    {{-- ── Chat Header ── --}}
-    <div class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-10 flex-shrink-0">
+<div id="chat-view"
+     class="flex flex-col overflow-hidden bg-white dark:bg-gray-900"
+     x-data="chatRoom"
+     x-init="setup({{ $chat->id }}, {{ auth()->id() }})">
+
+    {{-- ── Header ── --}}
+    <div class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 z-10">
         <a href="{{ route('chats.index') }}" class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </a>
@@ -28,16 +44,15 @@
                 <h2 class="font-semibold text-[15px] text-gray-900 dark:text-white truncate">
                     {{ $chat->getDisplayNameFor(auth()->id()) }}
                 </h2>
-                <p class="text-xs text-gray-400 dark:text-gray-500 truncate">
-                    <span x-text="statusText">
-                        @if($other){{ $other->is_online ? 'online' : $other->last_seen_formatted }}
-                        @elseif($group){{ $chat->activeParticipants()->count() }} members
-                        @endif
-                    </span>
+                <p class="text-xs text-gray-400 dark:text-gray-500 truncate" x-text="statusText">
+                    @if($other){{ $other->is_online ? 'online' : $other->last_seen_formatted }}
+                    @elseif($group){{ $chat->activeParticipants()->count() }} members
+                    @endif
                 </p>
             </div>
         </a>
 
+        {{-- Action buttons + menu --}}
         <div class="flex items-center gap-1 flex-shrink-0">
             @if($other || $group)
             <button @click="initiateCall('voice')"
@@ -49,34 +64,37 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             </button>
             @endif
-            <button @click="showMenu = !showMenu"
-                    class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 relative">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg>
-                <div x-show="showMenu" @click.away="showMenu = false" x-cloak
+
+            {{-- ⚡ Menu — wrapper div so button is never nested inside button ⚡ --}}
+            <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open"
+                        class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg>
+                </button>
+                <div x-show="open" @click.away="open = false"
+                     style="display:none"
                      class="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 py-1 z-50">
-                    <button @click.prevent="pinChat()" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <button @click="pinChat(); open=false" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
                         Pin chat
                     </button>
-                    <button @click.prevent="muteChat()" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <button @click="muteChat(); open=false" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
                         Mute
                     </button>
                     <hr class="my-1 border-gray-100 dark:border-gray-700">
-                    <button @click.prevent="deleteChat()" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                    <button @click="deleteChat(); open=false" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         Delete
                     </button>
                 </div>
-            </button>
+            </div>
         </div>
     </div>
 
     {{-- ── Messages ── --}}
-    <div class="flex-1 overflow-y-auto px-3 py-4 space-y-2 overscroll-contain" id="messages-container"
-         @scroll="onScroll($event)">
-
-        <div id="load-more" class="text-center py-2" x-show="hasMoreMessages">
+    <div class="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-2 overscroll-contain" id="messages-container">
+        <div id="load-more" class="text-center py-2" x-show="hasMoreMessages" style="display:none">
             <button @click="loadMore()" class="text-xs text-primary-500 font-medium px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 rounded-full">
                 Load older messages
             </button>
@@ -88,29 +106,29 @@
             @endforeach
         </div>
 
-        <div x-show="typingUsers.length > 0" x-cloak class="flex items-end gap-2 ml-1">
+        {{-- Typing indicator --}}
+        <div x-show="typingUsers.length > 0" style="display:none" class="flex items-end gap-2 ml-1">
             <div class="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 px-4 py-3 rounded-2xl">
-                <div class="flex gap-1">
-                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0s"></div>
-                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:.15s"></div>
-                    <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:.3s"></div>
-                </div>
+                <span class="flex gap-1">
+                    <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0s"></span>
+                    <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:.15s"></span>
+                    <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:.3s"></span>
+                </span>
                 <span class="text-xs text-gray-400 ml-1" x-text="typingText"></span>
             </div>
         </div>
 
-        {{-- Real-time status indicator --}}
-        <div x-show="!echoConnected" x-cloak
-             class="flex items-center justify-center gap-1.5 py-1">
-            <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
+        {{-- Polling indicator --}}
+        <div x-show="!echoConnected" style="display:none" class="flex items-center justify-center gap-1.5 py-1">
+            <span class="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>
             <span class="text-[10px] text-gray-400">Polling for new messages…</span>
         </div>
 
         <div id="messages-end"></div>
     </div>
 
-    {{-- ── Reply Preview ── --}}
-    <div x-show="replyTo" x-cloak
+    {{-- ── Reply preview ── --}}
+    <div x-show="replyTo" style="display:none"
          class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div class="w-1 h-8 bg-primary-500 rounded-full flex-shrink-0"></div>
         <div class="flex-1 min-w-0">
@@ -125,37 +143,40 @@
     {{-- ── Message Input ── --}}
     <div class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-3 py-2.5 flex-shrink-0">
         <div class="flex items-end gap-2">
+
             {{-- Attachment --}}
-            <button @click="showAttachMenu = !showAttachMenu"
-                    class="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0 relative">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                <div x-show="showAttachMenu" @click.away="showAttachMenu = false" x-cloak
+            <div class="relative flex-shrink-0" x-data="{ attachOpen: false }">
+                <button @click="attachOpen = !attachOpen"
+                        class="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                </button>
+                <div x-show="attachOpen" @click.away="attachOpen = false" style="display:none"
                      class="absolute bottom-full left-0 mb-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-2 grid grid-cols-3 gap-1 w-48 z-30">
                     <label class="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-center">
                         <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         </div>
                         <span class="text-[10px] text-gray-500 font-medium">Photo</span>
-                        <input type="file" class="hidden" accept="image/*" @change="sendMedia($event, 'image')">
+                        <input type="file" class="hidden" accept="image/*" @change="sendMedia($event, 'image'); attachOpen=false">
                     </label>
                     <label class="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-center">
                         <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         </div>
                         <span class="text-[10px] text-gray-500 font-medium">Video</span>
-                        <input type="file" class="hidden" accept="video/*" @change="sendMedia($event, 'video')">
+                        <input type="file" class="hidden" accept="video/*" @change="sendMedia($event, 'video'); attachOpen=false">
                     </label>
                     <label class="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer text-center">
                         <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
                             <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </div>
                         <span class="text-[10px] text-gray-500 font-medium">File</span>
-                        <input type="file" class="hidden" @change="sendMedia($event, 'file')">
+                        <input type="file" class="hidden" @change="sendMedia($event, 'file'); attachOpen=false">
                     </label>
                 </div>
-            </button>
+            </div>
 
-            {{-- Text input --}}
+            {{-- Textarea --}}
             <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-2.5 min-h-[44px] max-h-32 overflow-hidden">
                 <textarea x-ref="msgInput" x-model="messageText"
                           @keydown.enter.prevent.exact="send()"
@@ -168,14 +189,16 @@
 
             {{-- Voice / Send --}}
             <div class="flex-shrink-0">
-                <button x-show="!messageText.trim()" @click="toggleVoiceNote()"
-                        :class="{ 'bg-red-500 text-white': recording, 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800': !recording }"
+                <button @click="toggleVoiceNote()"
+                        x-show="!messageText.trim()"
+                        :class="recording ? 'bg-red-500 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'"
                         class="p-2.5 rounded-xl transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                     </svg>
                 </button>
-                <button x-show="messageText.trim()" @click="send()"
+                <button @click="send()"
+                        x-show="messageText.trim()"
                         class="w-10 h-10 bg-primary-500 hover:bg-primary-600 rounded-xl flex items-center justify-center text-white transition-colors shadow-lg">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
@@ -185,10 +208,10 @@
         </div>
 
         {{-- Voice recording UI --}}
-        <div x-show="recording" x-cloak class="flex items-center gap-3 px-2 py-2">
+        <div x-show="recording" style="display:none" class="flex items-center gap-3 px-2 py-2">
             <span class="flex gap-0.5 items-end h-5">
                 @for($i = 0; $i < 7; $i++)
-                <span class="w-0.5 bg-red-400 rounded-full animate-bounce" style="height:{{ [8,16,12,20,14,18,10][$i] }}px;animation-delay:{{ $i * 0.1 }}s"></span>
+                <span class="w-0.5 bg-red-400 rounded-full animate-bounce" style="height:{{ [8,16,12,20,14,18,10][$i] }}px;animation-delay:{{ $i*0.1 }}s"></span>
                 @endfor
             </span>
             <span class="text-sm font-medium text-red-500" x-text="recordingDuration"></span>
@@ -199,8 +222,8 @@
     </div>
 
     {{-- ── Emoji Picker ── --}}
-    <div x-show="showEmojiPicker" @click.away="showEmojiPicker = false" x-cloak
-         class="fixed bottom-20 right-4 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-3 lg:bottom-16">
+    <div x-show="showEmojiPicker" @click.away="showEmojiPicker = false" style="display:none"
+         class="fixed bottom-20 right-4 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-3 lg:bottom-4">
         <div class="grid grid-cols-8 gap-1.5">
             @foreach(['😀','😂','🥹','😍','🥰','😘','😎','🤩','😜','🤔','😔','😭','🔥','❤️','👍','👎','🙏','🎉','✅','⭐','💯','🚀','💪','😈','🤝','🫶','💬','🎵','📷','🎮','💰','🌟'] as $emoji)
             <button @click="addEmoji('{{ $emoji }}')" class="w-8 h-8 text-xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center justify-center">{{ $emoji }}</button>
@@ -211,10 +234,10 @@
 
 @push('scripts')
 <script>
-function chatRoom(chatId, userId) {
-    return {
-        chatId,
-        userId,
+document.addEventListener('alpine:init', () => {
+    Alpine.data('chatRoom', () => ({
+        chatId: null,
+        userId: null,
         messageText: '',
         replyTo: null,
         typingUsers: [],
@@ -225,15 +248,12 @@ function chatRoom(chatId, userId) {
         audioChunks: [],
         recordingTimer: null,
         recordingSeconds: 0,
-        hasMoreMessages: {{ $messages->hasMorePages() ? 'true' : 'false' }},
-        currentPage: 1,
-        showMenu: false,
-        showAttachMenu: false,
+        hasMoreMessages: false,
         showEmojiPicker: false,
-        lastMessageId: {{ $messages->last()?->id ?? 0 }},
+        lastMessageId: 0,
         echoConnected: false,
         pollingInterval: null,
-        statusText: '{{ $other ? ($other->is_online ? "online" : $other->last_seen_formatted) : ($group ? $chat->activeParticipants()->count() . " members" : "") }}',
+        statusText: '',
 
         get recordingDuration() {
             const m = String(Math.floor(this.recordingSeconds / 60)).padStart(2, '0');
@@ -241,16 +261,25 @@ function chatRoom(chatId, userId) {
             return m + ':' + s;
         },
 
-        init() {
+        // Called by x-init with server-side values
+        setup(chatId, userId) {
+            this.chatId = chatId;
+            this.userId = userId;
+            this.hasMoreMessages = {{ $messages->hasMorePages() ? 'true' : 'false' }};
+            this.lastMessageId = {{ $messages->last()?->id ?? 0 }};
+            this.statusText = @json($other
+                ? ($other->is_online ? 'online' : $other->last_seen_formatted)
+                : ($group ? $chat->activeParticipants()->count() . ' members' : ''));
             this.scrollToBottom();
             this.markRead();
             this.listenForMessages();
             this.startPolling();
         },
 
-        // ── Polling fallback (works even without Pusher) ──────────────
+        // ── Polling fallback ──────────────────────────────────────────
         startPolling() {
             this.pollingInterval = setInterval(() => this.pollMessages(), 3500);
+            window.addEventListener('echo-connected', () => { this.echoConnected = true; });
         },
 
         async pollMessages() {
@@ -259,7 +288,6 @@ function chatRoom(chatId, userId) {
                 const res = await fetch(`/chats/${this.chatId}/messages/poll?after=${this.lastMessageId}`, {
                     headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                if (!res.ok) return;
                 const data = await res.json();
                 (data.messages || []).forEach(msg => {
                     this.lastMessageId = Math.max(this.lastMessageId, msg.id);
@@ -272,31 +300,28 @@ function chatRoom(chatId, userId) {
             } catch {}
         },
 
-        // ── WebSocket / Echo ──────────────────────────────────────────
+        // ── Echo / WebSocket ──────────────────────────────────────────
         listenForMessages() {
-            const echo = window.Echo;
-            if (!echo) return;
-
+            if (!window.Echo) return;
             try {
-                echo.private(`chat.${this.chatId}`)
+                window.Echo.private(`chat.${this.chatId}`)
                     .listen('.message.sent', (e) => {
                         this.echoConnected = true;
                         if (e.sender_id === this.userId) return;
                         if (document.getElementById(`msg-${e.id}`)) return;
-                        const html = this.renderMessage(e);
-                        document.getElementById('messages-list').insertAdjacentHTML('beforeend', html);
+                        document.getElementById('messages-list').insertAdjacentHTML('beforeend', this.renderMessage(e));
                         this.scrollToBottom(true);
                         this.markRead();
-                        this.typingUsers = this.typingUsers.filter(u => u.user_id !== e.sender_id);
                         if (e.id) this.lastMessageId = Math.max(this.lastMessageId, e.id);
+                        this.typingUsers = this.typingUsers.filter(u => u.user_id !== e.sender_id);
                     })
                     .listen('.message.deleted', (e) => {
                         const el = document.getElementById(`msg-${e.message_id}`);
                         if (el) el.innerHTML = '<div class="flex justify-center"><span class="text-xs text-gray-400 italic py-1">🚫 Message deleted</span></div>';
                     })
                     .listen('.message.edited', (e) => {
-                        const bodyEl = document.getElementById(`msg-body-${e.message_id}`);
-                        if (bodyEl) bodyEl.textContent = e.body;
+                        const el = document.getElementById(`msg-body-${e.message_id}`);
+                        if (el) el.textContent = e.body;
                     })
                     .listen('.typing.started', (e) => {
                         if (e.user_id === this.userId) return;
@@ -312,12 +337,8 @@ function chatRoom(chatId, userId) {
                     .listen('.call.initiated', (e) => {
                         window.dispatchEvent(new CustomEvent('incoming-call', { detail: e }));
                     });
-
-                // Mark as connected after 2 s if subscribed without error
-                setTimeout(() => { this.echoConnected = true; }, 2000);
-            } catch(e) {
-                console.warn('Echo subscription failed, using polling:', e);
-            }
+                setTimeout(() => { this.echoConnected = true; }, 2500);
+            } catch(e) { console.warn('Echo chat subscription failed:', e); }
         },
 
         // ── Send ──────────────────────────────────────────────────────
@@ -327,10 +348,10 @@ function chatRoom(chatId, userId) {
             this.messageText = '';
             this.$nextTick(() => { if (this.$refs.msgInput) this.$refs.msgInput.style.height = 'auto'; });
 
-            const body = { type: 'text', body: text, reply_to_id: this.replyTo?.id || null };
+            const res = await this.apiPost(`/chats/${this.chatId}/messages`, {
+                type: 'text', body: text, reply_to_id: this.replyTo?.id || null,
+            });
             this.replyTo = null;
-
-            const res = await this.apiPost(`/chats/${this.chatId}/messages`, body);
             if (res?.html) {
                 document.getElementById('messages-list').insertAdjacentHTML('beforeend', res.html);
                 if (res.message?.id) this.lastMessageId = Math.max(this.lastMessageId, res.message.id);
@@ -339,7 +360,6 @@ function chatRoom(chatId, userId) {
         },
 
         async sendMedia(event, type) {
-            this.showAttachMenu = false;
             const file = event.target.files[0];
             if (!file) return;
             const form = new FormData();
@@ -420,7 +440,7 @@ function chatRoom(chatId, userId) {
             }
         },
 
-        // ── Misc ──────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────
         async markRead() {
             await fetch(`/chats/${this.chatId}/messages/read`, {
                 method: 'POST',
@@ -436,6 +456,7 @@ function chatRoom(chatId, userId) {
 
         autoResize() {
             const ta = this.$refs.msgInput;
+            if (!ta) return;
             ta.style.height = 'auto';
             ta.style.height = Math.min(ta.scrollHeight, 128) + 'px';
         },
@@ -451,9 +472,8 @@ function chatRoom(chatId, userId) {
             const time  = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const body  = msg.type === 'text'
                 ? `<p class="text-[15px] leading-relaxed" id="msg-body-${msg.id}">${this.escapeHtml(msg.body)}</p>`
-                : `<p class="text-sm italic text-gray-300">${msg.body_preview || msg.type}</p>`;
-            return `
-            <div id="msg-${msg.id}" class="flex ${isOut ? 'justify-end' : 'justify-start'} mb-1">
+                : `<p class="text-sm italic text-gray-300">${msg.type}</p>`;
+            return `<div id="msg-${msg.id}" class="flex ${isOut ? 'justify-end' : 'justify-start'} mb-1">
                 <div class="${isOut ? 'bg-primary-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'} max-w-[75%] px-4 py-2.5 rounded-2xl">
                     ${body}
                     <p class="text-[11px] ${isOut ? 'text-white/60' : 'text-gray-400'} text-right mt-0.5">${time}</p>
@@ -478,12 +498,14 @@ function chatRoom(chatId, userId) {
                 },
                 body: JSON.stringify(data),
             });
-            return res.json();
+            return res.json().catch(() => ({}));
         },
 
         async pinChat() {
-            await fetch(`/chats/${this.chatId}/pin`, { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } });
-            this.showMenu = false;
+            await fetch(`/chats/${this.chatId}/pin`, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            });
         },
 
         async muteChat() {
@@ -492,29 +514,20 @@ function chatRoom(chatId, userId) {
                 headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ duration: 8 }),
             });
-            this.showMenu = false;
         },
 
         deleteChat() {
             if (!confirm('Delete this chat?')) return;
             clearInterval(this.pollingInterval);
-            fetch(`/chats/${this.chatId}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } })
-                .then(() => window.location = '/chats');
+            fetch(`/chats/${this.chatId}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            }).then(() => window.location = '/chats');
         },
 
-        onScroll(e) {
-            if (e.target.scrollTop < 50 && this.hasMoreMessages) this.loadMore();
-        },
-
-        async loadMore() {
-            this.hasMoreMessages = false;
-            const res = await fetch(`/chats/${this.chatId}?page=${++this.currentPage}`, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-            });
-            // Server renders the page HTML; just disable further loads for now
-        },
-    };
-}
+        async loadMore() { this.hasMoreMessages = false; },
+    }));
+});
 </script>
 @endpush
 @endsection

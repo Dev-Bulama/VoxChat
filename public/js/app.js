@@ -11,35 +11,61 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Laravel Echo / Pusher Setup ───────────────────────────────────────────────
-if (typeof Pusher !== 'undefined' && typeof Echo !== 'undefined' && window.AUTH_USER) {
-    window.Echo = new Echo({
-        broadcaster:    'pusher',
-        key:            window.PUSHER_KEY,
-        cluster:        window.PUSHER_CLUSTER,
-        wsHost:         window.PUSHER_HOST || window.location.hostname,
-        wsPort:         window.PUSHER_PORT || 6001,
-        wssPort:        window.PUSHER_PORT || 6001,
-        forceTLS:       window.PUSHER_SCHEME === 'https',
-        encrypted:      true,
-        enabledTransports: ['ws', 'wss'],
-        authEndpoint:   '/broadcasting/auth',
-    });
-
-    // Global user presence
-    window.Echo.join('presence.global')
-        .here((users) => { window.dispatchEvent(new CustomEvent('presence-here', { detail: users })); })
-        .joining((user) => { markUserOnline(user.id, true); })
-        .leaving((user) => { markUserOnline(user.id, false); });
-
-    // Private user channel for personal notifications
-    window.Echo.private(`user.${window.AUTH_USER.id}`)
-        .notification((notification) => {
-            handleNotification(notification);
-        })
-        .listen('.call.initiated', (data) => {
-            window.dispatchEvent(new CustomEvent('incoming-call', { detail: data }));
+let echoReady = false;
+if (typeof Pusher !== 'undefined' && typeof Echo !== 'undefined' && window.AUTH_USER && window.PUSHER_KEY) {
+    try {
+        window.Echo = new Echo({
+            broadcaster:    'pusher',
+            key:            window.PUSHER_KEY,
+            cluster:        window.PUSHER_CLUSTER,
+            wsHost:         window.PUSHER_HOST || window.location.hostname,
+            wsPort:         window.PUSHER_PORT || 6001,
+            wssPort:        window.PUSHER_PORT || 6001,
+            forceTLS:       window.location.protocol === 'https:',
+            encrypted:      true,
+            enabledTransports: ['ws', 'wss'],
+            authEndpoint:   '/broadcasting/auth',
         });
+
+        window.Echo.connector.pusher.connection.bind('connected', () => {
+            echoReady = true;
+            window.dispatchEvent(new CustomEvent('echo-connected'));
+        });
+
+        // Global user presence
+        window.Echo.join('presence.global')
+            .here((users) => { window.dispatchEvent(new CustomEvent('presence-here', { detail: users })); })
+            .joining((user) => { markUserOnline(user.id, true); })
+            .leaving((user) => { markUserOnline(user.id, false); });
+
+        // Private user channel for personal notifications + calls
+        window.Echo.private(`user.${window.AUTH_USER.id}`)
+            .notification((notification) => { handleNotification(notification); })
+            .listen('.call.initiated', (data) => {
+                window.dispatchEvent(new CustomEvent('incoming-call', { detail: data }));
+            });
+    } catch(e) { console.warn('Echo setup failed:', e); }
 }
+
+// ── Call polling fallback (when Echo/Pusher not connected) ────────────────────
+let _lastPendingCallId = null;
+function startCallPolling() {
+    if (!window.AUTH_USER) return;
+    setInterval(async () => {
+        if (echoReady) return; // Echo handles it
+        try {
+            const res  = await fetch('/calls/pending', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (data.call && data.call.call_id !== _lastPendingCallId) {
+                _lastPendingCallId = data.call.call_id;
+                window.dispatchEvent(new CustomEvent('incoming-call', { detail: data.call }));
+            } else if (!data.call) {
+                _lastPendingCallId = null;
+            }
+        } catch {}
+    }, 5000);
+}
+document.addEventListener('DOMContentLoaded', startCallPolling);
 
 // ── Incoming Call Manager (Alpine component) ──────────────────────────────────
 document.addEventListener('alpine:init', () => {
