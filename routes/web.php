@@ -47,7 +47,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 | Authenticated Application Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
     // Chats
     Route::prefix('chats')->name('chats.')->group(function () {

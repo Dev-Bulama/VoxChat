@@ -231,12 +231,75 @@
     </template>
 </div>
 
+{{-- Desktop Top Navigation (hidden on mobile) --}}
+@auth
+<nav class="hidden lg:flex fixed top-0 left-0 right-0 z-40 h-14 glass border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm items-center px-6 gap-6">
+    <a href="{{ route('chats.index') }}" class="text-xl font-black text-primary-500 tracking-tight mr-4">VoxChat</a>
+
+    @php $cur = request()->routeIs('chats.*') ? 'chats' : (request()->routeIs('calls.*') ? 'calls' : (request()->routeIs('status.*') ? 'status' : (request()->routeIs('communities.*') ? 'communities' : ''))); @endphp
+
+    <a href="{{ route('chats.index') }}" class="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors {{ $cur === 'chats' ? 'text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        Chats
+    </a>
+    <a href="{{ route('calls.index') }}" class="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors {{ $cur === 'calls' ? 'text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+        Calls
+    </a>
+    <a href="{{ route('status.index') }}" class="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors {{ $cur === 'status' ? 'text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Status
+    </a>
+    <a href="{{ route('communities.index') }}" class="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors {{ $cur === 'communities' ? 'text-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800' }}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Communities
+    </a>
+
+    <div class="flex-1"></div>
+
+    {{-- Right side: user menu --}}
+    <div x-data="{ open: false }" class="relative">
+        <button @click="open = !open" class="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <img src="{{ auth()->user()->avatar_url }}" class="w-7 h-7 rounded-full object-cover">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ auth()->user()->name }}</span>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div x-show="open" @click.outside="open = false" x-transition
+             class="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl overflow-hidden z-50">
+            <a href="{{ route('profile.show', auth()->user()->username) }}" class="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                My Profile
+            </a>
+            <a href="{{ route('settings.index') }}" class="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Settings
+            </a>
+            @if(auth()->user()->is_admin)
+            <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                Admin Panel
+            </a>
+            @endif
+            <div class="border-t border-gray-100 dark:border-gray-800">
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        Sign Out
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</nav>
+@endauth
+
 {{-- Main content --}}
-<div id="app-container" class="flex flex-col min-h-screen">
+<div id="app-container" class="flex flex-col min-h-screen lg:pt-14">
     @yield('content')
 </div>
 
-{{-- Bottom Navigation (Mobile) --}}
+{{-- Bottom Navigation (Mobile only) --}}
 @auth
 <nav class="fixed bottom-0 left-0 right-0 z-40 glass border-t border-gray-200/50 dark:border-gray-800/50 shadow-nav safe-bottom lg:hidden">
     <div class="grid grid-cols-5 h-16">
