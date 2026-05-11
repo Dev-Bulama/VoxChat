@@ -12,14 +12,19 @@
     <div class="flex-1 overflow-y-auto">
         @forelse($callLogs as $call)
         @php
-            $participant = $call->participants->firstWhere('user_id', auth()->id());
-            $other = $call->participants->firstWhere('user_id', '!=', auth()->id());
-            $isOutgoing = $call->initiated_by === auth()->id();
-            $isMissed = !$isOutgoing && $participant?->status === 'missed';
-            $statusColor = $isMissed ? 'text-red-500' : ($isOutgoing ? 'text-blue-500' : 'text-green-500');
+            $participant  = $call->participants->firstWhere('user_id', auth()->id());
+            $other        = $call->participants->firstWhere('user_id', '!=', auth()->id());
+            $isOutgoing   = $call->initiated_by === auth()->id();
+            $isMissed     = !$isOutgoing && $participant?->status === 'missed';
+            $isActive     = in_array($call->status, ['ringing', 'ongoing']);
+            $statusColor  = $isMissed ? 'text-red-500' : ($isOutgoing ? 'text-blue-500' : 'text-green-500');
+            // Active calls → join the room; past calls → open the chat thread
+            $clickUrl     = $isActive
+                ? route('calls.room', $call)
+                : route('chats.show', $call->chat);
         @endphp
         <div class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800/50 cursor-pointer"
-             onclick="window.location='{{ route('chats.show', $call->chat) }}'">
+             onclick="window.location='{{ $clickUrl }}'">
             <div class="relative flex-shrink-0">
                 <img src="{{ $other?->user?->avatar_url ?? asset('images/user-placeholder.png') }}"
                      class="w-13 h-13 w-[52px] h-[52px] rounded-full object-cover">
@@ -35,6 +40,12 @@
             <div class="flex-1 min-w-0">
                 <p class="font-semibold text-[15px] text-gray-900 dark:text-white">{{ $other?->user?->name ?? 'Unknown' }}</p>
                 <div class="flex items-center gap-1.5 mt-0.5">
+                    @if($isActive)
+                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                        <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        {{ $call->status === 'ringing' ? 'Ringing — tap to join' : 'Ongoing — tap to join' }}
+                    </span>
+                    @else
                     @if($isOutgoing)
                     <svg class="w-3.5 h-3.5 {{ $statusColor }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
                     @else
@@ -43,6 +54,7 @@
                     <span class="text-sm {{ $statusColor }}">{{ $isMissed ? 'Missed' : ($isOutgoing ? 'Outgoing' : 'Incoming') }} {{ ucfirst($call->type) }}</span>
                     @if($call->duration)
                     <span class="text-sm text-gray-400">• {{ $call->duration_formatted }}</span>
+                    @endif
                     @endif
                 </div>
             </div>

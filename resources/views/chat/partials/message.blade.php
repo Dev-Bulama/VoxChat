@@ -65,19 +65,34 @@
                         </div>
 
                     @elseif($message->type === 'voice_note')
-                        <div class="flex items-center gap-3 min-w-[200px]">
-                            <button class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0"
-                                    onclick="this.closest('.voice-player').querySelector('audio').paused ? this.closest('.voice-player').querySelector('audio').play() : this.closest('.voice-player').querySelector('audio').pause()">
-                                <svg class="w-5 h-5 {{ $isOwn ? 'text-white' : 'text-primary-500' }}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+                        {{-- .vn-player wraps everything so toggleVoicePlay() can find audio + progress --}}
+                        <div class="vn-player flex items-center gap-3 min-w-[220px] max-w-xs">
+                            <audio src="{{ $message->media_url_full }}" preload="metadata" class="hidden"></audio>
+                            <button class="vn-btn w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 {{ $isOwn ? 'bg-white/20 text-white' : 'bg-primary-100 dark:bg-primary-900/30 text-primary-500' }}"
+                                    onclick="toggleVoicePlay(this)">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
                             </button>
-                            <div class="flex-1 voice-player">
-                                <audio class="hidden" src="{{ $message->media_url_full }}"></audio>
-                                <div class="flex items-center gap-0.5 h-6">
-                                    @for($i = 0; $i < 20; $i++)
-                                    <div class="{{ $isOwn ? 'bg-white/60' : 'bg-primary-300' }} rounded-full w-1" style="height: {{ rand(4, 20) }}px"></div>
-                                    @endfor
+                            <div class="flex-1 min-w-0">
+                                {{-- Progress bar --}}
+                                <div class="relative h-1.5 {{ $isOwn ? 'bg-white/25' : 'bg-gray-200 dark:bg-gray-600' }} rounded-full overflow-hidden mb-1.5">
+                                    <div class="vn-progress-fill h-full {{ $isOwn ? 'bg-white' : 'bg-primary-500' }} rounded-full transition-none" style="width:0%"></div>
                                 </div>
-                                <p class="text-[11px] {{ $isOwn ? 'text-white/60' : 'text-gray-400' }} mt-0.5">{{ gmdate('i:s', $message->media_duration ?? 0) }}</p>
+                                {{-- Waveform bars (decorative) --}}
+                                <div class="flex items-end gap-px h-5 mb-1">
+                                    @php $heights = [4,8,12,6,16,10,14,8,18,12,6,14,10,16,8,12,6,10,14,8]; @endphp
+                                    @foreach($heights as $h)
+                                    <div class="{{ $isOwn ? 'bg-white/50' : 'bg-primary-300 dark:bg-primary-600' }} rounded-full" style="width:2px;height:{{ $h }}px"></div>
+                                    @endforeach
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="vn-time text-[11px] {{ $isOwn ? 'text-white/60' : 'text-gray-400' }}">0:00</span>
+                                    <span class="vn-duration text-[11px] {{ $isOwn ? 'text-white/60' : 'text-gray-400' }}">
+                                        @php
+                                            $dur = $message->media_duration ?? 0;
+                                            echo $dur > 0 ? gmdate('i:s', $dur) : '';
+                                        @endphp
+                                    </span>
+                                </div>
                             </div>
                         </div>
 

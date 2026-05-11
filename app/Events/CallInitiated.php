@@ -17,7 +17,18 @@ class CallInitiated implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('chat.' . $this->call->chat_id)];
+        // Broadcast on chat channel AND each callee's personal channel.
+        // The callee may not have the chat open, so we must hit their private channel
+        // to trigger the incoming-call modal wherever they are in the app.
+        $channels = [new PrivateChannel('chat.' . $this->call->chat_id)];
+
+        foreach ($this->call->participants as $participant) {
+            if ($participant->user_id !== $this->call->initiated_by) {
+                $channels[] = new PrivateChannel('user.' . $participant->user_id);
+            }
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string { return 'call.initiated'; }
@@ -25,10 +36,11 @@ class CallInitiated implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'call_id'     => $this->call->id,
-            'room_id'     => $this->call->room_id,
-            'type'        => $this->call->type,
-            'initiator'   => [
+            'call_id' => $this->call->id,
+            'room_id' => $this->call->room_id,
+            'type'    => $this->call->type,
+            // Key is "caller" to match the incoming-call modal and polling response
+            'caller'  => [
                 'id'         => $this->call->initiator->id,
                 'name'       => $this->call->initiator->name,
                 'avatar_url' => $this->call->initiator->avatar_url,

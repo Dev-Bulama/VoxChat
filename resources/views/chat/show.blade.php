@@ -404,24 +404,56 @@ document.addEventListener('alpine:init', () => {
 
         async sendVoiceNote() {
             if (!this.mediaRecorder) return;
+            const durationSeconds = this.recordingSeconds; // capture before reset
             this.mediaRecorder.stop();
             this.mediaRecorder.onstop = async () => {
                 clearInterval(this.recordingTimer);
                 this.recording = false;
-                const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+
+                // Fix WebM duration metadata: create an object URL, load into Audio,
+                // then seek to end so the browser writes the duration header.
+                const rawBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                const blob = await new Promise(resolve => {
+                    const url   = URL.createObjectURL(rawBlob);
+                    const audio = new Audio(url);
+                    audio.addEventListener('loadedmetadata', () => {
+                        // If duration is Infinity (common with MediaRecorder), force-seek
+                        if (audio.duration === Infinity) {
+                            audio.currentTime = 1e10;
+                            audio.addEventListener('timeupdate', function fix() {
+                                audio.removeEventListener('timeupdate', fix);
+                                URL.revokeObjectURL(url);
+                                resolve(rawBlob); // blob itself is fine; duration now known
+                            }, { once: true });
+                        } else {
+                            URL.revokeObjectURL(url);
+                            resolve(rawBlob);
+                        }
+                    });
+                });
+
                 const form = new FormData();
                 form.append('type', 'voice_note');
                 form.append('media', blob, 'voice-note.webm');
-                const res = await fetch(`/chats/${this.chatId}/messages`, {
+                form.append('duration', durationSeconds); // seconds, saved to media_duration
+                if (this.replyTo) form.append('reply_to_id', this.replyTo.id);
+
+                const res  = await fetch(`/chats/${this.chatId}/messages`, {
                     method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'X-Requested-With': 'XMLHttpRequest' },
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                     body: form,
                 });
                 const data = await res.json();
                 if (data.html) {
                     document.getElementById('messages-list').insertAdjacentHTML('beforeend', data.html);
+                    if (data.message?.id) this.lastMessageId = Math.max(this.lastMessageId, data.message.id);
+                    this.replyTo = null;
                     this.scrollToBottom(true);
                 }
+                this.audioChunks = [];
             };
         },
 

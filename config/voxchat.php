@@ -48,11 +48,14 @@ return [
     |--------------------------------------------------------------------------
     */
     'ai_providers' => [
-        'did'      => ['name' => 'D-ID', 'class' => \App\Services\AI\DIDProvider::class],
-        'heygen'   => ['name' => 'HeyGen', 'class' => \App\Services\AI\HeyGenProvider::class],
-        'tavus'    => ['name' => 'Tavus', 'class' => \App\Services\AI\TavusProvider::class],
-        'simli'    => ['name' => 'Simli AI', 'class' => \App\Services\AI\SimliProvider::class],
-        'openai'   => ['name' => 'OpenAI', 'class' => \App\Services\AI\OpenAIProvider::class],
+        // Face replacement / avatar AI providers
+        'mediapipe'     => ['name' => 'MediaPipe (Built-in)', 'class' => \App\Services\AI\MediaPipeProvider::class, 'free' => true],
+        'deepfacelive'  => ['name' => 'DeepFaceLive', 'class' => \App\Services\AI\DeepFaceLiveProvider::class, 'self_hosted' => true],
+        'did'           => ['name' => 'D-ID', 'class' => \App\Services\AI\DIDProvider::class],
+        'heygen'        => ['name' => 'HeyGen', 'class' => \App\Services\AI\HeyGenProvider::class],
+        'tavus'         => ['name' => 'Tavus', 'class' => \App\Services\AI\TavusProvider::class],
+        'simli'         => ['name' => 'Simli AI', 'class' => \App\Services\AI\SimliProvider::class],
+        'openai'        => ['name' => 'OpenAI Realtime API', 'class' => \App\Services\AI\OpenAIProvider::class],
     ],
 
     /*
@@ -61,9 +64,10 @@ return [
     |--------------------------------------------------------------------------
     */
     'call_providers' => [
-        'webrtc'  => ['name' => 'WebRTC (Built-in)', 'class' => \App\Services\Call\WebRTCProvider::class],
-        'agora'   => ['name' => 'Agora', 'class' => \App\Services\Call\AgoraProvider::class],
+        'webrtc'  => ['name' => 'WebRTC (Built-in)', 'class' => \App\Services\Call\WebRTCProvider::class, 'free' => true],
         'livekit' => ['name' => 'LiveKit', 'class' => \App\Services\Call\LiveKitProvider::class],
+        'agora'   => ['name' => 'Agora', 'class' => \App\Services\Call\AgoraProvider::class],
+        'daily'   => ['name' => 'Daily.co', 'class' => \App\Services\Call\DailyProvider::class],
         'twilio'  => ['name' => 'Twilio Video', 'class' => \App\Services\Call\TwilioProvider::class],
     ],
 

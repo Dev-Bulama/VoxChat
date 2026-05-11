@@ -30,11 +30,17 @@ class MessageController extends Controller
             'media'      => 'nullable|file|max:102400',
             'reply_to_id'=> 'nullable|exists:messages,id',
             'metadata'   => 'nullable|array',
+            'duration'   => 'nullable|integer|min:0',
         ]);
 
         $mediaData = [];
         if ($request->hasFile('media')) {
             $mediaData = $this->mediaService->processUpload($request->file('media'), $request->type);
+        }
+
+        // Voice notes: save the client-reported duration (in seconds)
+        if ($request->type === 'voice_note' && $request->filled('duration')) {
+            $mediaData['media_duration'] = (int) $request->duration;
         }
 
         $message = Message::create([

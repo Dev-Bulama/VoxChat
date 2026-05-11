@@ -38,10 +38,12 @@ if (typeof Pusher !== 'undefined' && typeof Echo !== 'undefined' && window.AUTH_
             .joining((user) => { markUserOnline(user.id, true); })
             .leaving((user) => { markUserOnline(user.id, false); });
 
-        // Private user channel for personal notifications + calls
+        // Private user channel — receives call events wherever the callee is in the app,
+        // not just when their specific chat is open.
         window.Echo.private(`user.${window.AUTH_USER.id}`)
             .notification((notification) => { handleNotification(notification); })
             .listen('.call.initiated', (data) => {
+                // data: { call_id, room_id, type, caller: { id, name, avatar_url } }
                 window.dispatchEvent(new CustomEvent('incoming-call', { detail: data }));
             });
     } catch(e) { console.warn('Echo setup failed:', e); }
@@ -52,9 +54,11 @@ let _lastPendingCallId = null;
 function startCallPolling() {
     if (!window.AUTH_USER) return;
     setInterval(async () => {
-        if (echoReady) return; // Echo handles it
+        if (echoReady) return;
         try {
-            const res  = await fetch('/calls/pending', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const res  = await fetch('/calls/pending', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
             const data = await res.json();
             if (data.call && data.call.call_id !== _lastPendingCallId) {
                 _lastPendingCallId = data.call.call_id;
@@ -75,7 +79,10 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             window.addEventListener('incoming-call', (e) => {
-                this.call = e.detail;
+                // Normalise: accept both { call_id, ... } and { call: { call_id, ... } }
+                const detail = (e.detail?.call_id != null) ? e.detail : e.detail?.call;
+                if (!detail?.call_id) return;
+                this.call = detail;
                 this.playRingtone();
             });
         },
@@ -88,14 +95,22 @@ document.addEventListener('alpine:init', () => {
             } catch {}
         },
 
-        answerCall() {
+        stopRingtone() {
             if (this.audio) { this.audio.pause(); this.audio = null; }
+        },
+
+        answerCall() {
+            this.stopRingtone();
+            fetch(`/calls/${this.call.call_id}/answer`, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            });
             window.open(`/calls/${this.call.call_id}/room`, '_blank', 'width=900,height=700');
             this.call = null;
         },
 
         rejectCall() {
-            if (this.audio) { this.audio.pause(); this.audio = null; }
+            this.stopRingtone();
             fetch(`/calls/${this.call.call_id}/reject`, {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
@@ -121,7 +136,7 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
-// ── Helper functions ──────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function markUserOnline(userId, isOnline) {
     document.querySelectorAll(`.online-indicator-${userId}`).forEach(el => {
         el.style.display = isOnline ? 'block' : 'none';
@@ -129,12 +144,9 @@ function markUserOnline(userId, isOnline) {
 }
 
 function handleNotification(notification) {
-    // Show toast
     window.dispatchEvent(new CustomEvent('toast', {
         detail: { message: notification.data?.message || 'New notification', type: 'info' }
     }));
-
-    // Update badge
     const badge = document.getElementById('notification-badge');
     if (badge) {
         const count = parseInt(badge.textContent || '0') + 1;
@@ -156,20 +168,12 @@ function reactToMessage(messageId, emoji) {
     }).catch(console.error);
 }
 
-function setReply(message) {
-    window.dispatchEvent(new CustomEvent('set-reply', { detail: message }));
-}
-
-function editMessage(messageId, body) {
-    window.dispatchEvent(new CustomEvent('edit-message', { detail: { id: messageId, body } }));
-}
-
-function forwardMessage(messageId) {
-    window.dispatchEvent(new CustomEvent('forward-message', { detail: { id: messageId } }));
-}
+function setReply(message)       { window.dispatchEvent(new CustomEvent('set-reply',       { detail: message })); }
+function editMessage(id, body)   { window.dispatchEvent(new CustomEvent('edit-message',    { detail: { id, body } })); }
+function forwardMessage(id)      { window.dispatchEvent(new CustomEvent('forward-message', { detail: { id } })); }
 
 function deleteMessage(messageId) {
-    const type = confirm('Delete for everyone?\n\nOK = for everyone, Cancel = for me only') ? 'for_everyone' : 'for_me';
+    const type   = confirm('Delete for everyone?\n\nOK = for everyone, Cancel = for me only') ? 'for_everyone' : 'for_me';
     const chatId = window.location.pathname.split('/')[2];
     fetch(`/chats/${chatId}/messages/${messageId}`, {
         method: 'DELETE',
@@ -185,6 +189,52 @@ function deleteMessage(messageId) {
     }).catch(console.error);
 }
 
+// ── Voice note player ─────────────────────────────────────────────────────────
+// Called by the play button in message.blade.php
+function toggleVoicePlay(btn) {
+    const player = btn.closest('.vn-player');
+    const audio  = player?.querySelector('audio');
+    if (!audio) return;
+
+    const playIcon  = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>`;
+    const pauseIcon = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`;
+
+    if (audio.paused) {
+        // Pause every other voice note
+        document.querySelectorAll('.vn-player audio').forEach(a => {
+            if (a !== audio) {
+                a.pause();
+                a.closest('.vn-player')?.querySelector('.vn-btn')?.setAttribute('innerHTML', playIcon);
+            }
+        });
+        audio.play().catch(() => {});
+        btn.innerHTML = pauseIcon;
+    } else {
+        audio.pause();
+        btn.innerHTML = playIcon;
+    }
+
+    audio.onended = () => {
+        btn.innerHTML = playIcon;
+        const fill = player.querySelector('.vn-progress-fill');
+        const time = player.querySelector('.vn-time');
+        if (fill) fill.style.width = '0%';
+        if (time) time.textContent = player.querySelector('.vn-duration')?.textContent || '0:00';
+    };
+
+    audio.ontimeupdate = () => {
+        if (!audio.duration) return;
+        const pct  = (audio.currentTime / audio.duration) * 100;
+        const fill = player.querySelector('.vn-progress-fill');
+        const time = player.querySelector('.vn-time');
+        if (fill) fill.style.width = pct + '%';
+        if (time) {
+            const s = Math.floor(audio.currentTime);
+            time.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+        }
+    };
+}
+
 // ── Theme management ──────────────────────────────────────────────────────────
 function applyTheme(theme) {
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -193,7 +243,6 @@ function applyTheme(theme) {
     localStorage.setItem('voxchat_theme', theme);
 }
 
-// Auto-apply saved theme
 const savedTheme = localStorage.getItem('voxchat_theme') || 'system';
 applyTheme(savedTheme);
 
