@@ -8,12 +8,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: { 500:'#6366f1', 600:'#4f46e5' } } } } }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    {{-- face-api.js: free browser-based face detection, no API key required --}}
+    {{-- face-api.js: free browser-based face detection, no API key --}}
     <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #000; }
-        #local-video, #remote-video, #ai-canvas { object-fit: cover; }
+        #local-video, #remote-video { object-fit: cover; }
+        #ai-canvas { object-fit: cover; display: block; }
         .control-btn { width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .2s; }
         .control-btn:hover { transform: scale(1.05); }
         .glass-dark { background: rgba(0,0,0,0.55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
@@ -25,7 +26,7 @@
     </style>
 </head>
 <body class="h-full bg-gray-950 overflow-hidden"
-      x-data="videoCall({{ $call->id }}, '{{ $call->room_id }}', {{ auth()->id() }}, '{{ $token }}')"
+      x-data="videoCall()"
       x-init="init()">
 
 {{-- ── Remote video (full background) ── --}}
@@ -52,7 +53,7 @@
          @click="swapVideos()">
         <video id="local-video" class="w-full h-full object-cover bg-gray-800 absolute inset-0"
                autoplay playsinline muted x-show="!aiFaceEnabled"></video>
-        <canvas id="ai-canvas" class="w-full h-full object-cover absolute inset-0"
+        <canvas id="ai-canvas" class="w-full h-full absolute inset-0"
                 x-show="aiFaceEnabled" style="display:none"></canvas>
         <div x-show="localVideoOff && !aiFaceEnabled"
              class="absolute inset-0 bg-gray-800 flex items-center justify-center z-10">
@@ -75,7 +76,7 @@
                 <img src="{{ $other?->user?->avatar_url ?? '' }}" class="w-9 h-9 rounded-full object-cover">
                 <div>
                     <p class="text-white font-semibold text-sm">{{ $other?->user?->name ?? 'Unknown' }}</p>
-                    <p class="text-white/60 text-xs" x-text="callActive ? duration : statusLabel">00:00</p>
+                    <p class="text-white/60 text-xs" x-text="callActive ? duration : statusLabel">Connecting...</p>
                 </div>
             </div>
             <div x-show="faceTrackingActive" class="flex items-center gap-1.5 bg-purple-500/30 px-2.5 py-1 rounded-full">
@@ -112,7 +113,7 @@
                     :class="isMuted ? 'bg-red-500' : 'bg-white/20'"
                     class="control-btn text-white">
                 <svg x-show="!isMuted" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                <svg x-show="isMuted" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+                <svg x-show="isMuted" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
             </button>
 
             <button @click="endCall()" class="control-btn bg-red-500 text-white w-16 h-16 shadow-xl shadow-red-500/40">
@@ -124,7 +125,7 @@
                     :class="localVideoOff ? 'bg-red-500' : 'bg-white/20'"
                     class="control-btn text-white">
                 <svg x-show="!localVideoOff" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                <svg x-show="localVideoOff" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" x-cloak><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+                <svg x-show="localVideoOff" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
             </button>
 
             <button @click="toggleScreenShare()"
@@ -142,9 +143,7 @@
         </div>
     </div>
 
-    {{-- ══════════════════════════════════════════════════════════════ --}}
-    {{-- AI FACE PANEL                                                  --}}
-    {{-- ══════════════════════════════════════════════════════════════ --}}
+    {{-- ══ AI FACE PANEL ══ --}}
     <div x-show="showFacePanel"
          x-transition:enter="panel-slide"
          x-transition:enter-start="translate-y-full"
@@ -153,9 +152,8 @@
          x-transition:leave-start="translate-y-0"
          x-transition:leave-end="translate-y-full"
          class="absolute inset-x-0 bottom-0 z-50 rounded-t-3xl overflow-hidden"
-         style="max-height: 92vh; background: rgba(10,10,20,0.97); backdrop-filter: blur(20px);">
+         style="max-height: 92vh; background: rgba(10,10,20,0.97); backdrop-filter: blur(20px); display:none">
 
-        {{-- Header --}}
         <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10">
             <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
@@ -165,7 +163,7 @@
                 </div>
                 <div>
                     <h3 class="text-white font-bold text-sm">AI Face Replacement</h3>
-                    <p class="text-white/40 text-xs" x-text="faceTrackingReady ? '🎯 Face tracking ready — avatar follows your head movements' : '⏳ Loading face tracking…'"></p>
+                    <p class="text-white/40 text-xs" x-text="faceTrackingReady ? '🎯 Face tracking ready — avatar follows your head' : '⏳ Loading face tracking…'"></p>
                 </div>
             </div>
             <button @click="showFacePanel = false" class="text-white/40 hover:text-white/80 p-1">
@@ -175,13 +173,12 @@
 
         <div class="overflow-y-auto" style="max-height: calc(92vh - 140px);">
 
-            {{-- How it works banner --}}
             <div class="mx-5 mt-4 mb-2 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20">
                 <div class="flex items-start gap-2">
                     <span class="text-lg">🤖</span>
                     <div>
-                        <p class="text-purple-300 text-xs font-semibold">How face tracking works</p>
-                        <p class="text-white/40 text-xs mt-0.5">Your camera detects your face in real-time using MediaPipe AI (runs in your browser, free, no API key). The selected avatar is positioned and scaled to match your head movements — the other person sees the avatar moving like you do.</p>
+                        <p class="text-purple-300 text-xs font-semibold">Real-time face tracking</p>
+                        <p class="text-white/40 text-xs mt-0.5">Your camera detects your face using MediaPipe AI (runs in the browser, no API key). The avatar is positioned and sized to match your head movements — the other person sees the avatar moving with you.</p>
                     </div>
                 </div>
             </div>
@@ -217,7 +214,7 @@
                     </div>
                     <div>
                         <p class="text-sm font-medium text-white/80">Upload a face photo</p>
-                        <p class="text-xs text-white/40">JPG or PNG — frontal face works best for tracking</p>
+                        <p class="text-xs text-white/40">JPG or PNG — frontal face works best</p>
                     </div>
                     <input type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="handleFaceUpload($event)">
                     <div x-show="uploadedFaceUrl" class="ml-auto">
@@ -287,20 +284,20 @@
             @endif
         </div>
 
-        {{-- Apply button --}}
-        <div class="px-5 py-4 border-t border-white/10">
+        {{-- Apply button (always visible, sticky) --}}
+        <div class="px-5 py-4 border-t border-white/10 bg-black/60">
             <button @click="confirmAiFace()"
                     :disabled="!selectedFaceUrl"
                     :class="selectedFaceUrl ? 'bg-purple-500 hover:bg-purple-600' : 'bg-white/10 opacity-50 cursor-not-allowed'"
-                    class="w-full py-3 rounded-2xl text-white font-semibold text-sm transition-colors">
-                <span x-text="aiFaceEnabled ? 'Update AI Face' : 'Apply AI Face'"></span>
+                    class="w-full py-3.5 rounded-2xl text-white font-semibold text-sm transition-colors">
+                <span x-text="aiFaceEnabled ? '✓ Update AI Face' : 'Apply AI Face'"></span>
             </button>
         </div>
     </div>
 
     {{-- Panel backdrop --}}
     <div x-show="showFacePanel" @click="showFacePanel = false"
-         class="absolute inset-0 bg-black/40 z-40"></div>
+         class="absolute inset-0 bg-black/40 z-40" style="display:none"></div>
 </div>
 
 <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
@@ -308,43 +305,52 @@
 
 <script>
 const FACE_MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+const CALL_ID        = {{ $call->id }};
+const ROOM_ID        = '{{ $call->room_id }}';
+const USER_ID        = {{ auth()->id() }};
+const CALL_TOKEN     = '{{ $token }}';
+const IS_INITIATOR   = {{ $call->initiated_by === auth()->id() ? 'true' : 'false' }};
+const CALL_TYPE      = '{{ $call->type }}';
+const CSRF           = document.querySelector('meta[name="csrf-token"]').content;
 
-function videoCall(callId, roomId, userId, token) {
+function videoCall() {
     return {
-        callId, roomId, userId, token,
-        localStream: null,
-        peerConnection: null,
-        isMuted: false,
-        localVideoOff: false,
-        isScreenSharing: false,
-        speakerOn: true,
-        aiFaceEnabled: false,
-        callActive: false,
-        callStartTime: null,
+        // State
+        localStream:      null,
+        peerConnection:   null,
+        isMuted:          false,
+        localVideoOff:    false,
+        isScreenSharing:  false,
+        speakerOn:        true,
+        callActive:       false,
+        callStartTime:    null,
         durationInterval: null,
-        duration: '00:00',
-        statusLabel: 'Connecting...',
+        duration:         '00:00',
+        statusLabel:      IS_INITIATOR ? 'Ringing…' : 'Connecting…',
 
-        // AI Face state
-        showFacePanel: false,
-        selectedFaceUrl: null,
-        selectedFaceName: null,
-        uploadedFaceUrl: null,
-        faceImage: null,
-        canvasAnimFrame: null,
-        faceTrackingReady: false,
-        faceTrackingActive: false,
-        lastDetection: null,
-        detectionFrame: 0,
+        // AI Face
+        showFacePanel:       false,
+        aiFaceEnabled:       false,
+        selectedFaceUrl:     null,
+        selectedFaceName:    null,
+        uploadedFaceUrl:     null,
+        faceImage:           null,
+        canvasAnimFrame:     null,
+        faceTrackingReady:   false,
+        faceTrackingActive:  false,
+        _smoothBox:          null,
+        _missCount:          0,       // consecutive failed detections
+        _detFrame:           0,
+        _detecting:          false,   // lock so we don't stack async detections
 
         async init() {
             await this.setupMedia();
-            await this.setupWebRTC();
+            this.setupWebRTC();        // not await — starts async
             this.listenForSignaling();
             this.loadFaceTracking();
         },
 
-        // ── Face tracking (face-api.js, free, no API key needed) ─────
+        // ── Face tracking ─────────────────────────────────────────────
         async loadFaceTracking() {
             if (typeof faceapi === 'undefined') return;
             try {
@@ -354,21 +360,20 @@ function videoCall(callId, roomId, userId, token) {
                 ]);
                 this.faceTrackingReady = true;
             } catch(e) {
-                console.warn('Face tracking models failed to load — using static overlay:', e);
-                this.faceTrackingReady = false;
+                console.warn('Face models load failed — static overlay fallback:', e);
             }
         },
 
-        // ── Media setup ───────────────────────────────────────────────
+        // ── Media ─────────────────────────────────────────────────────
         async setupMedia() {
             try {
                 this.localStream = await navigator.mediaDevices.getUserMedia({
-                    video: '{{ $call->type }}' === 'video',
+                    video: CALL_TYPE === 'video',
                     audio: true,
                 });
                 const lv = document.getElementById('local-video');
                 if (lv) lv.srcObject = this.localStream;
-            } catch (err) {
+            } catch(err) {
                 console.error('Media error:', err);
                 this.statusLabel = 'Camera/mic access denied';
             }
@@ -381,61 +386,92 @@ function videoCall(callId, roomId, userId, token) {
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
                     { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun.cloudflare.com:3478' },
                 ]
             });
+
             if (this.localStream) {
                 this.localStream.getTracks().forEach(t => this.peerConnection.addTrack(t, this.localStream));
             }
+
             this.peerConnection.ontrack = (e) => {
                 const rv = document.getElementById('remote-video');
-                if (rv) rv.srcObject = e.streams[0];
-                this.callActive = true;
+                if (rv && e.streams[0]) rv.srcObject = e.streams[0];
+                this.callActive  = true;
                 this.statusLabel = 'Connected';
                 this.startDurationTimer();
             };
+
             this.peerConnection.onicecandidate = (e) => {
                 if (e.candidate) this.sendSignal('ice-candidate', e.candidate);
             };
+
             this.peerConnection.onconnectionstatechange = () => {
-                if (['disconnected','failed'].includes(this.peerConnection.connectionState)) {
+                const state = this.peerConnection.connectionState;
+                if (state === 'connected') {
+                    this.callActive  = true;
+                    this.statusLabel = 'Connected';
+                    if (!this.callStartTime) this.startDurationTimer();
+                } else if (['disconnected', 'failed'].includes(state)) {
                     this.statusLabel = 'Connection lost';
                 }
             };
-            const offer = await this.peerConnection.createOffer();
-            await this.peerConnection.setLocalDescription(offer);
-            this.sendSignal('offer', offer);
+
+            // Only the caller (initiator) creates the offer.
+            // The callee waits to receive the offer via listenForSignaling().
+            if (IS_INITIATOR) {
+                try {
+                    const offer = await this.peerConnection.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: CALL_TYPE === 'video',
+                    });
+                    await this.peerConnection.setLocalDescription(offer);
+                    this.sendSignal('offer', offer);
+                } catch(e) { console.error('Offer failed:', e); }
+            }
         },
 
         listenForSignaling() {
-            if (typeof Echo === 'undefined') return;
+            if (typeof Echo === 'undefined') {
+                // Echo not loaded yet — retry after init
+                setTimeout(() => this.listenForSignaling(), 1000);
+                return;
+            }
             try {
-                Echo.private(`call.${this.roomId}`).listen('.call.signal', async (data) => {
-                    if (data.user_id === this.userId) return;
+                Echo.private(`call.${ROOM_ID}`).listen('.call.signal', async (data) => {
+                    if (data.user_id === USER_ID) return; // own echo
+                    if (!this.peerConnection) return;
+
                     if (data.type === 'offer') {
-                        await this.peerConnection.setRemoteDescription(data.payload);
+                        // We are the callee — receive offer, send answer
+                        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.payload));
                         const ans = await this.peerConnection.createAnswer();
                         await this.peerConnection.setLocalDescription(ans);
                         this.sendSignal('answer', ans);
                     } else if (data.type === 'answer') {
-                        await this.peerConnection.setRemoteDescription(data.payload);
+                        if (this.peerConnection.signalingState === 'have-local-offer') {
+                            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.payload));
+                        }
                     } else if (data.type === 'ice-candidate') {
-                        await this.peerConnection.addIceCandidate(data.payload);
+                        try {
+                            await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.payload));
+                        } catch {}
                     } else if (data.type === 'call-ended') {
                         this.handleRemoteEnd();
                     }
                 });
-            } catch(e) { console.warn('Signaling setup failed:', e); }
+            } catch(e) { console.warn('Signaling channel failed:', e); }
         },
 
         sendSignal(type, payload) {
-            fetch(`/api/calls/${this.callId}/signal`, {
+            fetch(`/calls/${CALL_ID}/signal`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
                 body: JSON.stringify({ type, payload }),
-            });
+            }).catch(() => {});
         },
 
-        // ── AI Face ───────────────────────────────────────────────────
+        // ── AI Face canvas overlay ────────────────────────────────────
         handleFaceUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -445,7 +481,7 @@ function videoCall(callId, roomId, userId, token) {
         },
 
         applyFace(url, name) {
-            this.selectedFaceUrl = url;
+            this.selectedFaceUrl  = url;
             this.selectedFaceName = name;
         },
 
@@ -454,19 +490,17 @@ function videoCall(callId, roomId, userId, token) {
             this.aiFaceEnabled = true;
             this.showFacePanel = false;
             await this.startCanvasOverlay();
-            try {
-                await fetch(`/calls/${this.callId}/ai-face`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-                    body: JSON.stringify({ provider: 'mediapipe', face_url: this.selectedFaceUrl }),
-                });
-            } catch {}
+            fetch(`/calls/${CALL_ID}/ai-face`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify({ provider: 'mediapipe' }),
+            }).catch(() => {});
         },
 
         disableAiFace() {
-            this.aiFaceEnabled = false;
+            this.aiFaceEnabled    = false;
             this.faceTrackingActive = false;
-            this.selectedFaceUrl = null;
+            this.selectedFaceUrl  = null;
             this.selectedFaceName = null;
             this.stopCanvasOverlay();
             this.showFacePanel = false;
@@ -477,97 +511,127 @@ function videoCall(callId, roomId, userId, token) {
             const video  = document.getElementById('local-video');
             if (!canvas || !video) return;
 
-            canvas.width  = 320;
+            // Match canvas to video stream resolution
+            canvas.width  = 640;
             canvas.height = 480;
             const ctx = canvas.getContext('2d');
 
-            // Preload face image
+            // Preload avatar image
             this.faceImage = new Image();
             this.faceImage.crossOrigin = 'anonymous';
             this.faceImage.src = this.selectedFaceUrl;
 
-            // Smoothed detection result for interpolation
-            let smoothBox = null;
+            this._smoothBox  = null;
+            this._missCount  = 0;
+            this._detFrame   = 0;
+            this._detecting  = false;
 
             const renderFrame = async () => {
                 if (!this.aiFaceEnabled) return;
 
-                // Draw raw video onto canvas (background layer)
-                try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch {}
+                // ── Draw raw camera feed as background ──
+                try {
+                    ctx.save();
+                    ctx.scale(-1, 1);    // mirror so it feels like a front cam
+                    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                } catch {}
 
-                // Run face detection every 6 frames (~5 fps) to stay performant
-                this.detectionFrame++;
-                if (this.detectionFrame % 6 === 0 && this.faceTrackingReady && typeof faceapi !== 'undefined') {
-                    try {
-                        const det = await faceapi.detectSingleFace(
-                            video,
-                            new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4, inputSize: 160 })
-                        );
+                // ── Async face detection every 5 frames (~6fps) ──
+                // Use a lock so only one detection runs at a time (prevents stacking)
+                this._detFrame++;
+                if (this._detFrame % 5 === 0 && this.faceTrackingReady && !this._detecting && typeof faceapi !== 'undefined') {
+                    this._detecting = true;
+                    faceapi.detectSingleFace(
+                        video,
+                        new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.35, inputSize: 224 })
+                    ).then(det => {
+                        this._detecting = false;
                         if (det) {
-                            this.lastDetection = det.box;
+                            this._missCount = 0;
+                            // Scale from video dims to canvas dims
+                            const vw = video.videoWidth  || canvas.width;
+                            const vh = video.videoHeight || canvas.height;
+                            // Mirror the X coordinate to match our flipped render
+                            const rawX = (vw - (det.box.x + det.box.width)) * (canvas.width / vw);
+                            const rawY = det.box.y * (canvas.height / vh);
+                            const rawW = det.box.width  * (canvas.width  / vw);
+                            const rawH = det.box.height * (canvas.height / vh);
+
+                            // Expand the box — cover forehead, chin and sides
+                            const fw = rawW * 1.9;
+                            const fh = rawH * 2.1;
+                            const cx = rawX + rawW / 2;
+                            // Shift center up 15% to cover forehead
+                            const cy = rawY + rawH * 0.45;
+
+                            if (!this._smoothBox) {
+                                this._smoothBox = { cx, cy, fw, fh };
+                            } else {
+                                // Lerp smoothing — high alpha = snappy, low = laggy
+                                const a = 0.35;
+                                this._smoothBox.cx += (cx - this._smoothBox.cx) * a;
+                                this._smoothBox.cy += (cy - this._smoothBox.cy) * a;
+                                this._smoothBox.fw += (fw - this._smoothBox.fw) * a;
+                                this._smoothBox.fh += (fh - this._smoothBox.fh) * a;
+                            }
                             this.faceTrackingActive = true;
                         } else {
-                            this.faceTrackingActive = false;
+                            this._missCount++;
+                            // Only disable tracking after 8 consecutive misses (~1.3s)
+                            if (this._missCount > 8) {
+                                this.faceTrackingActive = false;
+                            }
                         }
-                    } catch {}
+                    }).catch(() => { this._detecting = false; });
                 }
 
-                // Draw avatar overlay
+                // ── Draw avatar overlay ──
                 if (this.faceImage?.complete && this.faceImage.naturalWidth > 0) {
-                    if (this.lastDetection && this.faceTrackingActive) {
-                        // Scale from video coords to canvas coords
-                        const vw = video.videoWidth  || canvas.width;
-                        const vh = video.videoHeight || canvas.height;
-                        const sx = canvas.width  / vw;
-                        const sy = canvas.height / vh;
-
-                        const box = this.lastDetection;
-                        // Expand box slightly so the avatar covers the full head
-                        const fw = box.width  * sx * 1.45;
-                        const fh = box.height * sy * 1.55;
-                        const cx = (box.x + box.width  / 2) * sx;
-                        const cy = (box.y + box.height / 2) * sy;
-
-                        // Smooth the box position (lerp)
-                        if (!smoothBox) smoothBox = { cx, cy, fw, fh };
-                        smoothBox.cx += (cx - smoothBox.cx) * 0.3;
-                        smoothBox.cy += (cy - smoothBox.cy) * 0.3;
-                        smoothBox.fw += (fw - smoothBox.fw) * 0.3;
-                        smoothBox.fh += (fh - smoothBox.fh) * 0.3;
-
+                    if (this._smoothBox) {
+                        // Draw avatar clipped to ellipse matching the face region
                         ctx.save();
-                        ctx.globalAlpha = 0.95;
+                        ctx.globalAlpha = 0.97;
                         ctx.beginPath();
-                        ctx.ellipse(smoothBox.cx, smoothBox.cy - smoothBox.fh * 0.05,
-                                    smoothBox.fw / 2, smoothBox.fh / 2, 0, 0, Math.PI * 2);
+                        ctx.ellipse(
+                            this._smoothBox.cx,
+                            this._smoothBox.cy,
+                            this._smoothBox.fw / 2,
+                            this._smoothBox.fh / 2,
+                            0, 0, Math.PI * 2
+                        );
                         ctx.clip();
-                        ctx.drawImage(this.faceImage,
-                            smoothBox.cx - smoothBox.fw / 2,
-                            smoothBox.cy - smoothBox.fh / 2 - smoothBox.fh * 0.05,
-                            smoothBox.fw, smoothBox.fh);
+                        ctx.drawImage(
+                            this.faceImage,
+                            this._smoothBox.cx - this._smoothBox.fw / 2,
+                            this._smoothBox.cy - this._smoothBox.fh / 2,
+                            this._smoothBox.fw,
+                            this._smoothBox.fh
+                        );
                         ctx.restore();
                     } else {
-                        // Fallback: static centered overlay when no face detected
-                        this.drawStaticOverlay(ctx, canvas);
+                        // No face detected yet — show centered static overlay
+                        this._drawStaticOverlay(ctx, canvas);
                     }
                 }
 
-                // Purple border + label
-                ctx.strokeStyle = 'rgba(168,85,247,0.6)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
-                ctx.fillStyle = 'rgba(168,85,247,0.75)';
-                ctx.fillRect(6, 6, this.faceTrackingActive ? 90 : 72, 20);
+                // Tracking badge
+                const label = this.faceTrackingActive ? '🎯 TRACKING' : '🖼️ AI FACE';
+                const lw    = ctx.measureText(label).width + 20;
+                ctx.fillStyle = 'rgba(139,92,246,0.8)';
+                ctx.beginPath();
+                ctx.roundRect(8, 8, lw, 22, 6);
+                ctx.fill();
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 10px Inter, sans-serif';
-                ctx.fillText(this.faceTrackingActive ? '🎯 TRACKING' : '🖼️ AI FACE', 10, 20);
+                ctx.font      = 'bold 11px Inter, sans-serif';
+                ctx.fillText(label, 14, 23);
 
                 this.canvasAnimFrame = requestAnimationFrame(renderFrame);
             };
 
             renderFrame();
 
-            // Replace WebRTC video track with canvas stream
+            // Replace WebRTC video track with canvas stream so remote sees the avatar
             try {
                 const stream = canvas.captureStream(30);
                 const sender = this.peerConnection?.getSenders().find(s => s.track?.kind === 'video');
@@ -575,15 +639,15 @@ function videoCall(callId, roomId, userId, token) {
             } catch(e) { console.warn('Canvas stream replace failed:', e); }
         },
 
-        drawStaticOverlay(ctx, canvas) {
-            const fw = canvas.width * 0.55;
-            const fh = canvas.height * 0.45;
-            const fx = (canvas.width - fw) / 2;
-            const fy = canvas.height * 0.04;
+        _drawStaticOverlay(ctx, canvas) {
+            const fw = canvas.width  * 0.5;
+            const fh = canvas.height * 0.55;
+            const fx = (canvas.width  - fw) / 2;
+            const fy = canvas.height * 0.05;
             ctx.save();
-            ctx.globalAlpha = 0.93;
+            ctx.globalAlpha = 0.95;
             ctx.beginPath();
-            ctx.ellipse(fx + fw / 2, fy + fh * 0.45, fw / 2, fh / 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(fx + fw / 2, fy + fh / 2, fw / 2, fh / 2, 0, 0, Math.PI * 2);
             ctx.clip();
             ctx.drawImage(this.faceImage, fx, fy, fw, fh);
             ctx.restore();
@@ -594,21 +658,21 @@ function videoCall(callId, roomId, userId, token) {
                 cancelAnimationFrame(this.canvasAnimFrame);
                 this.canvasAnimFrame = null;
             }
-            // Restore real camera track
+            // Restore real camera track for remote
             if (this.localStream && this.peerConnection) {
                 const realTrack = this.localStream.getVideoTracks()[0];
-                const sender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+                const sender    = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
                 if (sender && realTrack) sender.replaceTrack(realTrack);
             }
         },
 
-        // ── Call controls ─────────────────────────────────────────────
+        // ── Controls ──────────────────────────────────────────────────
         toggleMute() {
             this.isMuted = !this.isMuted;
             if (this.localStream) this.localStream.getAudioTracks().forEach(t => t.enabled = !this.isMuted);
-            fetch(`/calls/${this.callId}/media`, {
+            fetch(`/calls/${CALL_ID}/media`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
                 body: JSON.stringify({ is_muted: this.isMuted }),
             });
         },
@@ -620,8 +684,11 @@ function videoCall(callId, roomId, userId, token) {
 
         async toggleScreenShare() {
             if (this.isScreenSharing) {
-                await this.setupMedia();
                 this.isScreenSharing = false;
+                // Put camera back
+                const track  = this.localStream?.getVideoTracks()[0];
+                const sender = this.peerConnection?.getSenders().find(s => s.track?.kind === 'video');
+                if (sender && track) sender.replaceTrack(track);
                 return;
             }
             try {
@@ -638,9 +705,9 @@ function videoCall(callId, roomId, userId, token) {
 
         endCall() {
             this.sendSignal('call-ended', {});
-            fetch(`/calls/${this.callId}/end`, {
+            fetch(`/calls/${CALL_ID}/end`, {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: { 'X-CSRF-TOKEN': CSRF },
             });
             this.cleanup();
             window.location.href = '/calls';
@@ -660,7 +727,8 @@ function videoCall(callId, roomId, userId, token) {
         },
 
         startDurationTimer() {
-            this.callStartTime = Date.now();
+            if (this.durationInterval) return;
+            this.callStartTime   = Date.now();
             this.durationInterval = setInterval(() => {
                 const s = Math.floor((Date.now() - this.callStartTime) / 1000);
                 this.duration = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
@@ -675,10 +743,11 @@ function videoCall(callId, roomId, userId, token) {
     };
 }
 
-const AUTH_USER  = { id: {{ auth()->id() }} };
-const PUSHER_KEY = '{{ config("broadcasting.connections.pusher.key") }}';
-const PUSHER_CLUSTER = '{{ config("broadcasting.connections.pusher.options.cluster") }}';
-const PUSHER_PORT    = {{ config("broadcasting.connections.pusher.options.port", 443) }};
+// Bootstrap Echo for signaling (same pattern as app.js but scoped here)
+window.AUTH_USER   = { id: USER_ID };
+window.PUSHER_KEY  = '{{ config("broadcasting.connections.pusher.key") }}';
+window.PUSHER_CLUSTER = '{{ config("broadcasting.connections.pusher.options.cluster") }}';
+window.PUSHER_PORT    = {{ config("broadcasting.connections.pusher.options.port", 443) }};
 </script>
 <script src="{{ asset('js/app.js') }}"></script>
 </body>

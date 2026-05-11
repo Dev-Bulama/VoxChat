@@ -28,23 +28,23 @@
      x-init="setup({{ $chat->id }}, {{ auth()->id() }})">
 
     {{-- ── Header ── --}}
-    <div class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 z-10">
+    <div class="flex items-center gap-2 px-2 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 z-10">
         <a href="{{ route('chats.index') }}" class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </a>
 
-        <a href="{{ $other ? route('profile.show', $other->username) : '#' }}" class="flex items-center gap-2.5 flex-1 min-w-0">
+        <a href="{{ $other ? route('profile.show', $other->username) : '#' }}" class="flex items-center gap-2 flex-1 min-w-0">
             <div class="relative flex-shrink-0">
-                <img src="{{ $chat->getDisplayAvatarFor(auth()->id()) }}" class="w-10 h-10 rounded-full object-cover">
+                <img src="{{ $chat->getDisplayAvatarFor(auth()->id()) }}" class="w-9 h-9 rounded-full object-cover">
                 @if($other?->is_online)
                 <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-white dark:ring-gray-900"></div>
                 @endif
             </div>
             <div class="min-w-0">
-                <h2 class="font-semibold text-[15px] text-gray-900 dark:text-white truncate">
+                <h2 class="font-semibold text-[14px] text-gray-900 dark:text-white truncate leading-tight">
                     {{ $chat->getDisplayNameFor(auth()->id()) }}
                 </h2>
-                <p class="text-xs text-gray-400 dark:text-gray-500 truncate" x-text="statusText">
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 truncate leading-tight" x-text="statusText">
                     @if($other){{ $other->is_online ? 'online' : $other->last_seen_formatted }}
                     @elseif($group){{ $chat->activeParticipants()->count() }} members
                     @endif
@@ -52,23 +52,23 @@
             </div>
         </a>
 
-        {{-- Action buttons + menu --}}
-        <div class="flex items-center gap-1 flex-shrink-0">
+        {{-- Action buttons — always visible, compact on mobile --}}
+        <div class="flex items-center gap-0.5 flex-shrink-0">
             @if($other || $group)
             <button @click="initiateCall('voice')"
-                    class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 active:bg-gray-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
             </button>
             <button @click="initiateCall('video')"
-                    class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 active:bg-gray-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             </button>
             @endif
 
-            {{-- ⚡ Menu — wrapper div so button is never nested inside button ⚡ --}}
+            {{-- Menu — sibling div, never nested inside a button --}}
             <div class="relative" x-data="{ open: false }">
                 <button @click="open = !open"
-                        class="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 active:bg-gray-200">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg>
                 </button>
                 <div x-show="open" @click.away="open = false"

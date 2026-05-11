@@ -86,6 +86,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{call}/answer',       [CallController::class, 'answer'])->name('answer');
         Route::post('/{call}/reject',       [CallController::class, 'reject'])->name('reject');
         Route::post('/{call}/end',          [CallController::class, 'end'])->name('end');
+        Route::post('/{call}/signal',        [CallController::class, 'signal'])->name('signal');
         Route::patch('/{call}/media',       [CallController::class, 'updateMedia'])->name('media.update');
         Route::post('/{call}/ai-face',      [CallController::class, 'enableAiFace'])->name('ai_face');
     });

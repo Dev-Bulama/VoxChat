@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\CallInitiated;
 use App\Events\CallAnswered;
 use App\Events\CallEnded;
+use App\Events\CallSignal;
 use App\Models\Call;
 use App\Models\CallParticipant;
 use App\Models\Chat;
@@ -144,6 +145,23 @@ class CallController extends Controller
         $token = $this->callService->generateToken($call, $user);
 
         return view('calls.room', compact('call', 'token'));
+    }
+
+    public function signal(Request $request, Call $call)
+    {
+        $request->validate([
+            'type'    => 'required|string|in:offer,answer,ice-candidate,call-ended',
+            'payload' => 'required',
+        ]);
+
+        abort_unless(
+            $call->participants()->where('user_id', Auth::id())->exists(),
+            403
+        );
+
+        broadcast(new CallSignal($call, Auth::id(), $request->type, $request->payload))->toOthers();
+
+        return response()->json(['success' => true]);
     }
 
     public function updateMedia(Request $request, Call $call)
