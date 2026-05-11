@@ -180,7 +180,7 @@
 <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen overflow-x-hidden">
 
 {{-- Incoming Call Modal --}}
-<div x-data="incomingCallManager()" x-cloak>
+<div x-data="incomingCallManager" x-cloak>
     <div x-show="call" x-transition:enter="animate-slide-in-up"
          class="fixed inset-0 z-[100] flex items-end justify-center p-4 pointer-events-none">
         <div x-show="call" class="w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-6 pointer-events-auto animate-bounce-in">
@@ -216,7 +216,7 @@
 </div>
 
 {{-- Toast Notifications --}}
-<div x-data="toastManager()" @toast.window="show($event.detail)" class="fixed top-4 right-4 z-50 space-y-2" style="max-width: 320px;">
+<div x-data="toastManager" @toast.window="show($event.detail)" class="fixed top-4 right-4 z-50 space-y-2" style="max-width: 320px;">
     <template x-for="toast in toasts" :key="toast.id">
         <div x-show="toast.visible" x-transition:enter="animate-slide-in-right" x-transition:leave="opacity-0 translate-x-full"
              :class="{

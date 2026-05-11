@@ -150,7 +150,7 @@ class CallController extends Controller
     public function signal(Request $request, Call $call)
     {
         $request->validate([
-            'type'    => 'required|string|in:offer,answer,ice-candidate,call-ended',
+            'type'    => 'required|string|in:offer,answer,ice-candidate,call-ended,callee-ready',
             'payload' => 'required',
         ]);
 

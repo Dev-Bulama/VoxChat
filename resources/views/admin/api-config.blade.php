@@ -110,22 +110,24 @@
             'desc'  => 'GPT-4o Realtime for speech-to-speech AI conversations inside calls. $0.06/min audio input, $0.24/min output.',
             'guide' => "Sign up at platform.openai.com → API keys → Create secret key.",
             'fields'=> [['key'=>'api_key','label'=>'API Key','type'=>'password','ph'=>'sk-...']],
-            'extra' => '<label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Model</label>
-                        <select name="api_config[model]" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                            <option value="gpt-4o-realtime-preview">gpt-4o-realtime-preview</option>
-                            <option value="gpt-4o-mini-realtime-preview">gpt-4o-mini-realtime-preview (cheaper)</option>
-                        </select>',
+            'extra' => true,
         ],
     ];
     @endphp
 
     @foreach($aiProviders as $key => $p)
+    @php $saved = $providers->get($key); $savedCfg = $saved?->api_config ?? []; @endphp
     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
         <div class="mb-4">
-            <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
-                <span class="text-xl">{{ $p['icon'] }}</span> {{ $p['name'] }}
-                <span class="text-[11px] px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full font-normal">{{ $p['badge'] }}</span>
-            </h3>
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span class="text-xl">{{ $p['icon'] }}</span> {{ $p['name'] }}
+                    <span class="text-[11px] px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full font-normal">{{ $p['badge'] }}</span>
+                </h3>
+                @if($saved?->is_enabled)
+                <span class="text-[11px] px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full font-medium">Active</span>
+                @endif
+            </div>
             <p class="text-sm text-gray-400">{{ $p['desc'] }}</p>
             <div class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-800 rounded-xl text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{{ $p['guide'] }}</div>
         </div>
@@ -133,28 +135,42 @@
             @csrf @method('PUT')
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 @foreach($p['fields'] as $f)
+                @php
+                    $savedVal = $savedCfg[$f['key']] ?? '';
+                    $isSecret = $f['type'] === 'password';
+                    $displayVal = $isSecret ? '' : $savedVal;
+                    $placeholder = ($isSecret && $savedVal !== '') ? '••••••••  (saved — leave blank to keep)' : $f['ph'];
+                @endphp
                 <div>
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ $f['label'] }}</label>
-                    <input type="{{ $f['type'] }}" name="api_config[{{ $f['key'] }}]" placeholder="{{ $f['ph'] }}"
+                    <input type="{{ $f['type'] }}" name="api_config[{{ $f['key'] }}]"
+                           placeholder="{{ $placeholder }}" value="{{ $displayVal }}"
                            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 </div>
                 @endforeach
                 @if(!empty($p['extra']))
-                <div>{!! $p['extra'] !!}</div>
+                @php $savedModel = $savedCfg['model'] ?? 'gpt-4o-realtime-preview'; @endphp
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Model</label>
+                    <select name="api_config[model]" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="gpt-4o-realtime-preview" {{ $savedModel === 'gpt-4o-realtime-preview' ? 'selected' : '' }}>gpt-4o-realtime-preview</option>
+                        <option value="gpt-4o-mini-realtime-preview" {{ $savedModel === 'gpt-4o-mini-realtime-preview' ? 'selected' : '' }}>gpt-4o-mini-realtime-preview (cheaper)</option>
+                    </select>
+                </div>
                 @endif
                 <div>
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Daily Limit (minutes, 0 = unlimited)</label>
-                    <input type="number" name="daily_limit" placeholder="0"
+                    <input type="number" name="daily_limit" placeholder="0" value="{{ $saved?->daily_limit ?? '' }}"
                            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 </div>
             </div>
             <div class="flex items-center gap-4 mb-4">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="is_enabled" value="1" class="w-4 h-4 text-primary-500 rounded">
+                    <input type="checkbox" name="is_enabled" value="1" class="w-4 h-4 text-primary-500 rounded" {{ $saved?->is_enabled ? 'checked' : '' }}>
                     <span class="text-sm text-gray-700 dark:text-gray-300">Enable {{ $p['name'] }}</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="is_default" value="1" class="w-4 h-4 text-primary-500 rounded">
+                    <input type="checkbox" name="is_default" value="1" class="w-4 h-4 text-primary-500 rounded" {{ $saved?->is_default ? 'checked' : '' }}>
                     <span class="text-sm text-gray-700 dark:text-gray-300">Set as default AI provider</span>
                 </label>
             </div>
@@ -201,12 +217,18 @@
     @endphp
 
     @foreach($callProviders as $key => $p)
+    @php $saved = $providers->get($key); $savedCfg = $saved?->api_config ?? []; @endphp
     <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
         <div class="mb-4">
-            <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-1">
-                <span class="text-xl">{{ $p['icon'] }}</span> {{ $p['name'] }}
-                <span class="text-[11px] px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full font-normal">{{ $p['badge'] }}</span>
-            </h3>
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span class="text-xl">{{ $p['icon'] }}</span> {{ $p['name'] }}
+                    <span class="text-[11px] px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full font-normal">{{ $p['badge'] }}</span>
+                </h3>
+                @if($saved?->is_enabled)
+                <span class="text-[11px] px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full font-medium">Active</span>
+                @endif
+            </div>
             <p class="text-sm text-gray-400">{{ $p['desc'] }}</p>
             <div class="mt-2 p-2.5 bg-gray-50 dark:bg-gray-800 rounded-xl text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{{ $p['guide'] }}</div>
         </div>
@@ -214,20 +236,27 @@
             @csrf @method('PUT')
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 @foreach($p['fields'] as $f)
+                @php
+                    $savedVal = $savedCfg[$f['key']] ?? '';
+                    $isSecret = $f['type'] === 'password';
+                    $displayVal = $isSecret ? '' : $savedVal;
+                    $placeholder = ($isSecret && $savedVal !== '') ? '••••••••  (saved — leave blank to keep)' : $f['ph'];
+                @endphp
                 <div class="{{ !empty($f['wide']) ? 'md:col-span-2' : '' }}">
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{{ $f['label'] }}</label>
-                    <input type="{{ $f['type'] }}" name="api_config[{{ $f['key'] }}]" placeholder="{{ $f['ph'] }}"
+                    <input type="{{ $f['type'] }}" name="api_config[{{ $f['key'] }}]"
+                           placeholder="{{ $placeholder }}" value="{{ $displayVal }}"
                            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                 </div>
                 @endforeach
             </div>
             <div class="flex items-center gap-4 mb-4">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="is_enabled" value="1" class="w-4 h-4 text-primary-500 rounded">
+                    <input type="checkbox" name="is_enabled" value="1" class="w-4 h-4 text-primary-500 rounded" {{ $saved?->is_enabled ? 'checked' : '' }}>
                     <span class="text-sm text-gray-700 dark:text-gray-300">Enable {{ $p['name'] }}</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="is_default" value="1" class="w-4 h-4 text-primary-500 rounded">
+                    <input type="checkbox" name="is_default" value="1" class="w-4 h-4 text-primary-500 rounded" {{ $saved?->is_default ? 'checked' : '' }}>
                     <span class="text-sm text-gray-700 dark:text-gray-300">Set as default call provider</span>
                 </label>
             </div>

@@ -11,7 +11,19 @@ class ApiConfigController extends Controller
 {
     public function index()
     {
-        $providers = AiProviderSetting::orderBy('priority')->get()->keyBy('provider');
+        $rawProviders = AiProviderSetting::orderBy('priority')->get()->keyBy('provider');
+
+        // Decrypt api_key in each provider's api_config for display
+        $providers = $rawProviders->map(function ($setting) {
+            $config = $setting->api_config ?? [];
+            foreach ($config as $k => $v) {
+                if (str_contains($k, 'key') || str_contains($k, 'secret') || str_contains($k, 'token')) {
+                    try { $config[$k] = Crypt::decryptString($v); } catch (\Throwable $e) { /* already plain */ }
+                }
+            }
+            $setting->api_config = $config;
+            return $setting;
+        });
 
         $availableProviders = config('voxchat.ai_providers', []);
         $callProviders      = config('voxchat.call_providers', []);
@@ -31,16 +43,30 @@ class ApiConfigController extends Controller
             'api_config'      => 'nullable|array',
         ]);
 
-        // Encrypt sensitive API keys
+        // Encrypt sensitive fields
         $apiConfig = $request->api_config ?? [];
-        if (isset($apiConfig['api_key'])) {
-            $apiConfig['api_key'] = Crypt::encryptString($apiConfig['api_key']);
+        foreach ($apiConfig as $k => $v) {
+            if ($v !== '' && (str_contains($k, 'key') || str_contains($k, 'secret') || str_contains($k, 'token'))) {
+                $apiConfig[$k] = Crypt::encryptString($v);
+            }
         }
+        // Remove blank values so they don't overwrite existing encrypted values
+        $apiConfig = array_filter($apiConfig, fn($v) => $v !== '');
+
+        // Merge with existing config so non-submitted fields are preserved
+        $existing = AiProviderSetting::where('provider', $provider)->first();
+        if ($existing && $existing->api_config) {
+            $apiConfig = array_merge($existing->api_config, $apiConfig);
+        }
+
+        $providerName = config("voxchat.ai_providers.{$provider}.name")
+            ?? config("voxchat.call_providers.{$provider}.name")
+            ?? ucfirst($provider);
 
         AiProviderSetting::updateOrCreate(
             ['provider' => $provider],
             [
-                'name'             => config("voxchat.ai_providers.{$provider}.name", ucfirst($provider)),
+                'name'             => $providerName,
                 'is_enabled'       => $request->boolean('is_enabled'),
                 'is_default'       => $request->boolean('is_default'),
                 'monthly_limit'    => $request->monthly_limit,

@@ -420,20 +420,36 @@ function videoCall() {
             // Only the caller (initiator) creates the offer.
             // The callee waits to receive the offer via listenForSignaling().
             if (IS_INITIATOR) {
-                try {
-                    const offer = await this.peerConnection.createOffer({
-                        offerToReceiveAudio: true,
-                        offerToReceiveVideo: CALL_TYPE === 'video',
-                    });
-                    await this.peerConnection.setLocalDescription(offer);
-                    this.sendSignal('offer', offer);
-                } catch(e) { console.error('Offer failed:', e); }
+                // Small delay to allow the callee's signaling subscription to register
+                // before we send. If callee joins late they'll send 'callee-ready'
+                // and we'll create a fresh offer then.
+                setTimeout(() => this.createAndSendOffer(), 800);
+            } else {
+                // Callee: tell caller we are in the room and ready for an offer.
+                // This handles the race condition where caller sent the offer before
+                // the callee's room window had opened.
+                setTimeout(() => this.sendSignal('callee-ready', {}), 600);
             }
+        },
+
+        async createAndSendOffer() {
+            if (!this.peerConnection) return;
+            try {
+                // Reset if we already have a local description
+                if (this.peerConnection.signalingState !== 'stable') {
+                    await this.peerConnection.setLocalDescription({ type: 'rollback' }).catch(() => {});
+                }
+                const offer = await this.peerConnection.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: CALL_TYPE === 'video',
+                });
+                await this.peerConnection.setLocalDescription(offer);
+                this.sendSignal('offer', offer);
+            } catch(e) { console.error('Offer failed:', e); }
         },
 
         listenForSignaling() {
             if (typeof Echo === 'undefined') {
-                // Echo not loaded yet — retry after init
                 setTimeout(() => this.listenForSignaling(), 1000);
                 return;
             }
@@ -442,12 +458,20 @@ function videoCall() {
                     if (data.user_id === USER_ID) return; // own echo
                     if (!this.peerConnection) return;
 
-                    if (data.type === 'offer') {
-                        // We are the callee — receive offer, send answer
-                        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.payload));
-                        const ans = await this.peerConnection.createAnswer();
-                        await this.peerConnection.setLocalDescription(ans);
-                        this.sendSignal('answer', ans);
+                    if (data.type === 'callee-ready') {
+                        // Callee just opened their room — re-create and send fresh offer
+                        // so they don't miss the one sent before they arrived.
+                        if (IS_INITIATOR) await this.createAndSendOffer();
+
+                    } else if (data.type === 'offer') {
+                        // We are the callee — receive offer, create answer
+                        try {
+                            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.payload));
+                            const ans = await this.peerConnection.createAnswer();
+                            await this.peerConnection.setLocalDescription(ans);
+                            this.sendSignal('answer', ans);
+                        } catch(e) { console.error('Offer handling failed:', e); }
+
                     } else if (data.type === 'answer') {
                         if (this.peerConnection.signalingState === 'have-local-offer') {
                             await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.payload));
